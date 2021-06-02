@@ -41,12 +41,12 @@ public class BlockingServer implements Server {
         isWorking = false;
         serverSocketService.shutdown();
         workersThreadPool.shutdown();
+        clients.forEach(ClientData::close);
         try {
             serverSocket.close();
         } catch (IOException ex) {
             throw new ServerException(ex);
         }
-        clients.forEach(ClientData::close);
     }
 
     private void acceptClients(ServerSocket serverSocket) {
@@ -57,8 +57,7 @@ public class BlockingServer implements Server {
                 clients.add(clientData);
                 clientData.processClient();
             }
-        } catch (IOException ex) {
-            ex.printStackTrace();
+        } catch (IOException ignored) {
         }
     }
 
@@ -87,6 +86,8 @@ public class BlockingServer implements Server {
                         });
                     }
                 } catch (IOException ignored) {
+                } finally {
+                    close();
                 }
             });
         }
@@ -95,17 +96,22 @@ public class BlockingServer implements Server {
             responseWriter.submit(() -> {
                 try {
                     ProtoUtils.writeArray(outputStream, array);
-                } catch (IOException ex) {
-                    ex.printStackTrace();
+                } catch (IOException ignored) {
                 }
             });
         }
 
         public void close() {
-            responseWriter.shutdown();
-            requestReader.shutdown();
+            if (!responseWriter.isShutdown()) {
+                responseWriter.shutdown();
+            }
+            if (!requestReader.isShutdown()) {
+                requestReader.shutdown();
+            }
             try {
-                socket.close();
+                if (!socket.isClosed()) {
+                    socket.close();
+                }
             } catch (IOException ignored) {
             }
         }

@@ -20,7 +20,6 @@ public class Statistics {
     }
 
     public long getAverageTimeInMillis() {
-        System.out.println(numberOfMeasurements);
         if (numberOfMeasurements.get() == 0) {
             return 0;
         }
