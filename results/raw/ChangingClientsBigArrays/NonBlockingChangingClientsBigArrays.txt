@@ -1,0 +1,16 @@
+NonBlocking
+NumberOfRequestsPerClient 100
+ArraySize 1000
+TimeBetweenRequests 100
+NumberOfClients
+100 41
+150 28
+200 31
+250 23
+300 619
+350 2144
+400 3100
+450 3764
+500 4032
+550 5505
+600 5618

@@ -25,4 +25,8 @@ public class Statistics {
         }
         return sumTime.get() / numberOfMeasurements.get();
     }
+
+    public long getNumberOfMeasurements() {
+        return numberOfMeasurements.get();
+    }
 }

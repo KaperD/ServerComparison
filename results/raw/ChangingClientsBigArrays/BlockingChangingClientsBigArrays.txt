@@ -1,0 +1,16 @@
+Blocking
+NumberOfRequestsPerClient 100
+ArraySize 1000
+TimeBetweenRequests 100
+NumberOfClients
+100 35
+150 21
+200 23
+250 22
+300 880
+350 2632
+400 3799
+450 4785
+500 5843
+550 7090
+600 8518

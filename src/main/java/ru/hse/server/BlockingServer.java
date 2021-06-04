@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,6 +24,14 @@ public class BlockingServer implements Server {
 
     public BlockingServer(int numberOfWorkers) {
         workersThreadPool = Executors.newFixedThreadPool(numberOfWorkers);
+    }
+
+    public static void main(String[] args) throws ServerException {
+        Server server = new BlockingServer(5);
+        server.start(8080);
+        Scanner scanner = new Scanner(System.in);
+        scanner.next();
+        server.shutdown();
     }
 
     @Override

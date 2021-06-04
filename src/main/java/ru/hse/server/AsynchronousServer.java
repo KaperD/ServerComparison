@@ -12,6 +12,7 @@ import java.nio.channels.AsynchronousServerSocketChannel;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.Queue;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,6 +24,14 @@ public class AsynchronousServer implements Server {
 
     public AsynchronousServer(int numberOfWorkers) {
         workersThreadPool = Executors.newFixedThreadPool(numberOfWorkers);
+    }
+
+    public static void main(String[] args) throws ServerException {
+        Server server = new AsynchronousServer(5);
+        server.start(8080);
+        Scanner scanner = new Scanner(System.in);
+        scanner.next();
+        server.shutdown();
     }
 
     @Override
@@ -68,6 +77,7 @@ public class AsynchronousServer implements Server {
         @Override
         public void completed(Integer integer, ClientData clientData) {
             if (integer < 0) {
+                clientData.close();
                 return;
             }
             if (clientData.isReadingSize) {
@@ -107,6 +117,7 @@ public class AsynchronousServer implements Server {
 
         @Override
         public void failed(Throwable throwable, ClientData clientData) {
+            clientData.close();
             System.out.println("Я упал");
         }
     }
@@ -115,6 +126,7 @@ public class AsynchronousServer implements Server {
         @Override
         public void completed(Integer integer, ClientData clientData) {
             if (integer < 0) {
+                clientData.close();
                 return;
             }
             if (clientData.getCurrentOutput().hasRemaining()) {
@@ -128,6 +140,7 @@ public class AsynchronousServer implements Server {
 
         @Override
         public void failed(Throwable throwable, ClientData clientData) {
+            clientData.close();
             System.out.println("Я упал");
         }
     }
@@ -156,6 +169,15 @@ public class AsynchronousServer implements Server {
 
         public void addOutput(ByteBuffer buffer) {
             outputs.add(buffer);
+        }
+
+        public void close() {
+            try {
+                if (channel.isOpen()) {
+                    channel.close();
+                }
+            } catch (IOException ignored) {
+            }
         }
     }
 }

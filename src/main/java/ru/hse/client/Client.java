@@ -13,7 +13,7 @@ import java.util.concurrent.*;
 import java.util.stream.IntStream;
 
 public class Client implements Callable<Void> {
-    private final Map<Integer, Long> measurements = new HashMap<>();
+    private final Map<Integer, Long> measurements = new ConcurrentHashMap<>();
 
     private int id;
     private final String host;
@@ -64,7 +64,7 @@ public class Client implements Callable<Void> {
                 long start = measurements.get(sortedArray.getId());
                 long time = System.currentTimeMillis() - start;
                 statistics.addMeasurement(time);
-                System.out.println("Task " + sortedArray.getId() + " is ready");
+//                System.out.println("Task " + sortedArray.getId() + " is ready");
 //                checkData(sortedArray.getData(), sortedArray.getId());
             }
         } catch (IOException e) {

@@ -1,10 +1,7 @@
 package ru.hse;
 
 import ru.hse.client.Client;
-import ru.hse.server.AsynchronousServer;
-import ru.hse.server.BlockingServer;
-import ru.hse.server.Server;
-import ru.hse.server.ServerException;
+import ru.hse.server.*;
 import ru.hse.statistics.Statistics;
 
 import java.util.List;
@@ -18,7 +15,7 @@ import java.util.stream.IntStream;
 
 public class Main {
     private static final int NUMBER_OF_SERVER_WORKERS = 5;
-    private static final int PORT = 1234;
+    private static final int PORT = 8080;
     private ServerType serverType;
     private int numberOfElementsInArray;
     private int numberOfClients;
@@ -51,6 +48,17 @@ public class Main {
             @Override
             public String toString() {
                 return "Asynchronous";
+            }
+        },
+        NON_BLOCKING {
+            @Override
+            public Server getInstance() {
+                return new NonBlockingServer(NUMBER_OF_SERVER_WORKERS);
+            }
+
+            @Override
+            public String toString() {
+                return "NonBlocking";
             }
         };
 
@@ -112,6 +120,8 @@ public class Main {
         }
         builder.append(changingParameter).append(System.lineSeparator());
 
+//        Server server = serverType.getInstance();
+//        server.start(PORT);
         while (lowerBound <= upperBound) {
             if (changingParameter.equals(Parameter.ARRAY_SIZE)) {
                 numberOfElementsInArray = lowerBound;
@@ -123,16 +133,16 @@ public class Main {
                 requestsTimeDelta = lowerBound;
             }
             long time = test();
+            System.out.println(lowerBound + " " + time);
             builder.append(lowerBound).append(" ").append(time).append(System.lineSeparator());
             lowerBound += step;
         }
+//        server.shutdown();
 
         return builder.toString();
     }
 
     private long test() throws ServerException, InterruptedException, ExecutionException {
-        Server server = serverType.getInstance();
-        server.start(PORT);
         ExecutorService threadPool = Executors.newCachedThreadPool();
         Statistics statistics = new Statistics();
         List<Future<Void>> futures = threadPool.invokeAll(
@@ -151,7 +161,7 @@ public class Main {
             future.get();
         }
         threadPool.shutdown();
-        server.shutdown();
+        System.out.println("Stat " + statistics.getNumberOfMeasurements());
         return statistics.getAverageTimeInMillis();
     }
 
@@ -160,9 +170,10 @@ public class Main {
             System.out.println("Chose server type:");
             System.out.println("1. Blocking");
             System.out.println("2. Asynchronous");
+            System.out.println("3. Non blocking");
             printPrefix();
             int type = scanner.nextInt();
-            if (type < 1 || type > 2) {
+            if (type < 1 || type > 3) {
                 System.out.println("Wrong type, try again");
                 continue;
             }
@@ -171,6 +182,9 @@ public class Main {
             }
             if (type == 2) {
                 serverType = ServerType.ASYNCHRONOUS;
+            }
+            if (type == 3) {
+                serverType = ServerType.NON_BLOCKING;
             }
             return;
         }

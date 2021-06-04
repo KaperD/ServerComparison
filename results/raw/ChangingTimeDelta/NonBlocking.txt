@@ -1,0 +1,15 @@
+NonBlocking
+NumberOfRequestsPerClient 300
+ArraySize 500
+NumberOfClients 100
+TimeBetweenRequests
+2 2235
+4 624
+6 537
+8 432
+10 208
+12 24
+14 32
+16 22
+18 20
+20 21
