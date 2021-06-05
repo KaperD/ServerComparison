@@ -181,7 +181,7 @@ public class Main {
             numberOfMeasurements = statistics.getNumberOfMeasurementsServer();
             averageTime = statistics.getAverageTimeInMillisServer();
         }
-        System.out.println("Stat " + numberOfMeasurements);
+        System.out.println("NumberOfMeasures " + numberOfMeasurements);
         return averageTime;
     }
 
