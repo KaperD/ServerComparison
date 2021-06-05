@@ -33,13 +33,13 @@ tasks.compileJava {
 }
 
 val fatJar = task("fatJar", type = Jar::class) {
-    baseName = "${project.name}-fat"
+    getArchiveBaseName().set("${project.name}-fat")
     manifest {
         attributes["Implementation-Title"] = "Gradle Jar File Example"
-        attributes["Implementation-Version"] = version
+        attributes["Implementation-Version"] = 1.0
         attributes["Main-Class"] = "ru.hse.Main"
     }
-    from(configurations.runtimeClasspath.get().map({ if (it.isDirectory) it else zipTree(it) }))
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
     with(tasks.jar.get() as CopySpec)
 }
 
