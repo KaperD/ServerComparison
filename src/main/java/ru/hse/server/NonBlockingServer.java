@@ -2,6 +2,7 @@ package ru.hse.server;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import ru.hse.data.IntArray;
+import ru.hse.statistics.Statistics;
 import ru.hse.utils.IntArraysUtils;
 import ru.hse.utils.ProtoUtils;
 
@@ -20,7 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class NonBlockingServer implements Server {
+public class NonBlockingServer extends Server {
     private ExecutorService workersThreadPool;
     private final ExecutorService serverSocketChanelService = Executors.newSingleThreadExecutor();
     private volatile boolean isWorking;
@@ -33,20 +34,20 @@ public class NonBlockingServer implements Server {
     private final ExecutorService responseWriter = Executors.newSingleThreadExecutor();
     private final Queue<ClientData> writeQueue = new ConcurrentLinkedQueue<>();
 
-    private final int numberOfWorkers;
+    private ServerSocketChannel serverSocketChannel;
 
-    public NonBlockingServer(int numberOfWorkers) {
-        this.numberOfWorkers = numberOfWorkers;
+    public NonBlockingServer(Statistics statistics) {
+        super(statistics);
     }
 
     @Override
-    public void start(int port) throws ServerException {
+    public void start(int port, int numberOfWorkers) throws ServerException {
         isWorking = true;
         workersThreadPool = Executors.newFixedThreadPool(numberOfWorkers);
         try {
             writeSelector = Selector.open();
             readSelector = Selector.open();
-            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+            serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.bind(new InetSocketAddress(port));
             serverSocketChanelService.submit(() -> acceptClients(serverSocketChannel));
             requestReader.submit(() -> {
@@ -68,14 +69,20 @@ public class NonBlockingServer implements Server {
         }
     }
 
-    public static void main(String[] args) throws IOException, ServerException {
-        Server server = new NonBlockingServer(5);
-        server.start(8080);
-    }
-
     @Override
     public void shutdown() throws ServerException {
-
+        isWorking = false;
+        workersThreadPool.shutdown();
+        serverSocketChanelService.shutdown();
+        requestReader.shutdown();
+        responseWriter.shutdown();
+        try {
+            serverSocketChannel.close();
+            readSelector.close();
+            writeSelector.close();
+        } catch (IOException ex) {
+            throw new ServerException(ex);
+        }
     }
 
     private void acceptClients(ServerSocketChannel serverSocket) {
@@ -171,27 +178,24 @@ public class NonBlockingServer implements Server {
     }
 
     private class Task implements Runnable {
-        private final ByteBuffer buffer;
+        private final IntArray array;
         private final ClientData clientData;
 
-        public Task(ByteBuffer buffer, ClientData clientData) {
-            this.buffer = buffer;
+        public Task(ByteBuffer buffer, ClientData clientData) throws InvalidProtocolBufferException {
+            this.array = ProtoUtils.readArray(buffer);
             this.clientData = clientData;
+            startMeasure(array.getId());
         }
 
         @Override
         public void run() {
-            try {
-                IntArray array = ProtoUtils.readArray(buffer);
-                IntArraysUtils.sort(array.getData());
-                clientData.addOutput(ProtoUtils.serialize(array));
-                if (clientData.numberOfUnfinishedOutputs.incrementAndGet() == 1) {
-                    writeQueue.add(clientData);
-                    writeSelector.wakeup();
-                }
-            } catch (InvalidProtocolBufferException ex) {
-                ex.printStackTrace();
+            IntArraysUtils.sort(array.getData());
+            clientData.addOutput(ProtoUtils.serialize(array));
+            if (clientData.numberOfUnfinishedOutputs.incrementAndGet() == 1) {
+                writeQueue.add(clientData);
+                writeSelector.wakeup();
             }
+            endMeasure(array.getId());
         }
     }
 

@@ -5,28 +5,56 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class Statistics {
     private final AtomicBoolean needMeasurement = new AtomicBoolean(true);
-    private final AtomicLong sumTime = new AtomicLong(0);
-    private final AtomicLong numberOfMeasurements = new AtomicLong(0);
+    private final AtomicLong sumTimeClients = new AtomicLong(0);
+    private final AtomicLong numberOfMeasurementsClients = new AtomicLong(0);
+    private final AtomicLong sumTimeServer = new AtomicLong(0);
+    private final AtomicLong numberOfMeasurementsServer = new AtomicLong(0);
 
-    public void addMeasurement(long millis) {
+    public void addMeasurementClient(long millis) {
         if (needMeasurement.get()) {
-            sumTime.addAndGet(millis);
-            numberOfMeasurements.incrementAndGet();
+            sumTimeClients.addAndGet(millis);
+            numberOfMeasurementsClients.incrementAndGet();
         }
+    }
+
+    public void addMeasurementServer(long millis) {
+        if (needMeasurement.get()) {
+            sumTimeServer.addAndGet(millis);
+            numberOfMeasurementsServer.incrementAndGet();
+        }
+    }
+
+    public void reset() {
+        sumTimeClients.set(0);
+        sumTimeServer.set(0);
+        numberOfMeasurementsClients.set(0);
+        numberOfMeasurementsServer.set(0);
+        needMeasurement.set(true);
     }
 
     public void stopMeasurements() {
         needMeasurement.set(false);
     }
 
-    public long getAverageTimeInMillis() {
-        if (numberOfMeasurements.get() == 0) {
+    public long getAverageTimeInMillisClients() {
+        if (numberOfMeasurementsClients.get() == 0) {
             return 0;
         }
-        return sumTime.get() / numberOfMeasurements.get();
+        return (sumTimeClients.get() + numberOfMeasurementsClients.get() - 1) / numberOfMeasurementsClients.get();
     }
 
-    public long getNumberOfMeasurements() {
-        return numberOfMeasurements.get();
+    public long getAverageTimeInMillisServer() {
+        if (numberOfMeasurementsServer.get() == 0) {
+            return 0;
+        }
+        return (sumTimeServer.get() + numberOfMeasurementsServer.get() - 1) / numberOfMeasurementsServer.get();
+    }
+
+    public long getNumberOfMeasurementsClients() {
+        return numberOfMeasurementsClients.get();
+    }
+
+    public long getNumberOfMeasurementsServer() {
+        return numberOfMeasurementsServer.get();
     }
 }

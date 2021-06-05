@@ -1,0 +1,25 @@
+NonBlocking
+NumberOfRequestsPerClient 100
+NumberOfClients 100
+TimeBetweenRequests 50
+ArraySize
+100 1
+200 1
+300 1
+400 1
+500 1
+600 1
+700 1
+800 2
+900 2
+1000 7
+1100 123
+1200 567
+1300 1095
+1400 1591
+1500 2142
+1600 2654
+1700 3155
+1800 3764
+1900 4685
+2000 5051

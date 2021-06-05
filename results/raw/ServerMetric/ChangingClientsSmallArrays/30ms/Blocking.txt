@@ -1,0 +1,16 @@
+Blocking
+NumberOfRequestsPerClient 1000
+ArraySize 100
+TimeBetweenRequests 30
+NumberOfClients
+100 1
+150 2
+200 3
+250 2
+300 3
+350 3
+400 4
+450 4
+500 5
+550 6
+600 5

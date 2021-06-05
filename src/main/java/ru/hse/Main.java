@@ -26,12 +26,13 @@ public class Main {
     private int lowerBound;
     private int upperBound;
     private int step;
+    private MetricType metricType;
 
     private enum ServerType {
         BLOCKING {
             @Override
-            public Server getInstance() {
-                return new BlockingServer(NUMBER_OF_SERVER_WORKERS);
+            public Server getInstance(Statistics statistics) {
+                return new BlockingServer(statistics);
             }
 
             @Override
@@ -41,8 +42,8 @@ public class Main {
         },
         ASYNCHRONOUS {
             @Override
-            public Server getInstance() {
-                return new AsynchronousServer(NUMBER_OF_SERVER_WORKERS);
+            public Server getInstance(Statistics statistics) {
+                return new AsynchronousServer(statistics);
             }
 
             @Override
@@ -52,8 +53,8 @@ public class Main {
         },
         NON_BLOCKING {
             @Override
-            public Server getInstance() {
-                return new NonBlockingServer(NUMBER_OF_SERVER_WORKERS);
+            public Server getInstance(Statistics statistics) {
+                return new NonBlockingServer(statistics);
             }
 
             @Override
@@ -62,7 +63,7 @@ public class Main {
             }
         };
 
-        public abstract Server getInstance();
+        public abstract Server getInstance(Statistics statistics);
     }
 
     private enum Parameter {
@@ -86,7 +87,13 @@ public class Main {
         },
     }
 
+    private enum MetricType {
+        CLIENT,
+        SERVER,
+    }
+
     public Main() {
+        askMetricType();
         askServerType();
         askNumberOfRequestsPerClient();
         askChangingParameter();
@@ -120,8 +127,9 @@ public class Main {
         }
         builder.append(changingParameter).append(System.lineSeparator());
 
-//        Server server = serverType.getInstance();
-//        server.start(PORT);
+        Statistics statistics = new Statistics();
+        Server server = serverType.getInstance(statistics);
+        server.start(PORT, NUMBER_OF_SERVER_WORKERS);
         while (lowerBound <= upperBound) {
             if (changingParameter.equals(Parameter.ARRAY_SIZE)) {
                 numberOfElementsInArray = lowerBound;
@@ -132,19 +140,19 @@ public class Main {
             if (changingParameter.equals(Parameter.TIME_BETWEEN_REQUESTS)) {
                 requestsTimeDelta = lowerBound;
             }
-            long time = test();
+            long time = test(statistics);
             System.out.println(lowerBound + " " + time);
             builder.append(lowerBound).append(" ").append(time).append(System.lineSeparator());
             lowerBound += step;
         }
-//        server.shutdown();
+        server.shutdown();
 
         return builder.toString();
     }
 
-    private long test() throws ServerException, InterruptedException, ExecutionException {
+    private long test(Statistics statistics) throws InterruptedException, ExecutionException {
+        statistics.reset();
         ExecutorService threadPool = Executors.newCachedThreadPool();
-        Statistics statistics = new Statistics();
         List<Future<Void>> futures = threadPool.invokeAll(
                 IntStream.range(0, numberOfClients).mapToObj(
                         id -> Client.getBuilder().
@@ -161,8 +169,38 @@ public class Main {
             future.get();
         }
         threadPool.shutdown();
-        System.out.println("Stat " + statistics.getNumberOfMeasurements());
-        return statistics.getAverageTimeInMillis();
+        long numberOfMeasurements;
+        long averageTime;
+        if (metricType.equals(MetricType.CLIENT)) {
+            numberOfMeasurements = statistics.getNumberOfMeasurementsClients();
+            averageTime = statistics.getAverageTimeInMillisClients();
+        } else {
+            numberOfMeasurements = statistics.getNumberOfMeasurementsServer();
+            averageTime = statistics.getAverageTimeInMillisServer();
+        }
+        System.out.println("Stat " + numberOfMeasurements);
+        return averageTime;
+    }
+
+    public void askMetricType() {
+        while (true) {
+            System.out.println("Chose metric type:");
+            System.out.println("1. Client");
+            System.out.println("2. Server");
+            printPrefix();
+            int type = scanner.nextInt();
+            if (type < 1 || type > 2) {
+                System.out.println("Wrong type, try again");
+                continue;
+            }
+            if (type == 1) {
+                metricType = MetricType.CLIENT;
+            }
+            if (type == 2) {
+                metricType = MetricType.SERVER;
+            }
+            return;
+        }
     }
 
     public void askServerType() {

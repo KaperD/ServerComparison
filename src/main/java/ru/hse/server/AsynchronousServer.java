@@ -2,6 +2,7 @@ package ru.hse.server;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import ru.hse.data.IntArray;
+import ru.hse.statistics.Statistics;
 import ru.hse.utils.IntArraysUtils;
 import ru.hse.utils.ProtoUtils;
 
@@ -18,24 +19,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class AsynchronousServer implements Server {
-    private final ExecutorService workersThreadPool;
+public class AsynchronousServer extends Server {
+    private ExecutorService workersThreadPool;
     private AsynchronousServerSocketChannel serverSocketChannel;
 
-    public AsynchronousServer(int numberOfWorkers) {
-        workersThreadPool = Executors.newFixedThreadPool(numberOfWorkers);
-    }
-
-    public static void main(String[] args) throws ServerException {
-        Server server = new AsynchronousServer(5);
-        server.start(8080);
-        Scanner scanner = new Scanner(System.in);
-        scanner.next();
-        server.shutdown();
+    public AsynchronousServer(Statistics statistics) {
+        super(statistics);
     }
 
     @Override
-    public void start(int port) throws ServerException {
+    public void start(int port, int numberOfWorkers) throws ServerException {
+        workersThreadPool = Executors.newFixedThreadPool(numberOfWorkers);
         try {
             serverSocketChannel = AsynchronousServerSocketChannel.open();
             serverSocketChannel.bind(new InetSocketAddress(port));
@@ -96,19 +90,22 @@ public class AsynchronousServer implements Server {
                     clientData.isReadingSize = true;
                     ByteBuffer buffer = clientData.messageBuffer;
                     clientData.channel.read(clientData.messageSizeBuffer, clientData, this);
-                    workersThreadPool.submit(() -> {
+                    try {
                         buffer.flip();
-                        try {
-                            IntArray array = ProtoUtils.readArray(buffer);
+                        IntArray array = ProtoUtils.readArray(buffer);
+                        final int id = array.getId();
+                        startMeasure(id);
+                        workersThreadPool.submit(() -> {
                             IntArraysUtils.sort(array.getData());
                             clientData.addOutput(ProtoUtils.serialize(array));
                             if (clientData.numberOfUnfinishedOutputs.incrementAndGet() == 1) {
                                 clientData.channel.write(clientData.getNextOutput(), clientData, outputHandler);
                             }
-                        } catch (InvalidProtocolBufferException e) {
-                            e.printStackTrace();
-                        }
-                    });
+                            endMeasure(id);
+                        });
+                    } catch (InvalidProtocolBufferException e) {
+                        e.printStackTrace();
+                    }
                 } else {
                     clientData.channel.read(clientData.messageBuffer, clientData, this);
                 }

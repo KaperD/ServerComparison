@@ -1,6 +1,7 @@
 package ru.hse.server;
 
 import ru.hse.data.IntArray;
+import ru.hse.statistics.Statistics;
 import ru.hse.utils.IntArraysUtils;
 import ru.hse.utils.ProtoUtils;
 
@@ -14,28 +15,21 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class BlockingServer implements Server {
+public class BlockingServer extends Server {
     private final ExecutorService serverSocketService = Executors.newSingleThreadExecutor();
-    private final ExecutorService workersThreadPool;
+    private ExecutorService workersThreadPool;
     private final ConcurrentLinkedQueue<ClientData> clients = new ConcurrentLinkedQueue<>();
     private ServerSocket serverSocket;
 
     private volatile boolean isWorking;
 
-    public BlockingServer(int numberOfWorkers) {
-        workersThreadPool = Executors.newFixedThreadPool(numberOfWorkers);
-    }
-
-    public static void main(String[] args) throws ServerException {
-        Server server = new BlockingServer(5);
-        server.start(8080);
-        Scanner scanner = new Scanner(System.in);
-        scanner.next();
-        server.shutdown();
+    public BlockingServer(Statistics statistics) {
+        super(statistics);
     }
 
     @Override
-    public void start(int port) throws ServerException {
+    public void start(int port, int numberOfWorkers) throws ServerException {
+        workersThreadPool = Executors.newFixedThreadPool(numberOfWorkers);
         try {
             isWorking = true;
             serverSocket = new ServerSocket(port);
@@ -89,9 +83,12 @@ public class BlockingServer implements Server {
                 try (Socket ignored = socket) {
                     while (isWorking && socket.isConnected()) {
                         IntArray array = ProtoUtils.readArray(inputStream);
+                        final int id = array.getId();
+                        startMeasure(id);
                         workersThreadPool.submit(() -> {
                             IntArraysUtils.sort(array.getData());
                             sendResponse(array);
+                            endMeasure(id);
                         });
                     }
                 } catch (IOException ignored) {

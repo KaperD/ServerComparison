@@ -6,7 +6,6 @@ import ru.hse.utils.ProtoUtils;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.*;
@@ -63,7 +62,7 @@ public class Client implements Callable<Void> {
                 IntArray sortedArray = ProtoUtils.readArray(socket.getInputStream());
                 long start = measurements.get(sortedArray.getId());
                 long time = System.currentTimeMillis() - start;
-                statistics.addMeasurement(time);
+                statistics.addMeasurementClient(time);
 //                System.out.println("Task " + sortedArray.getId() + " is ready");
 //                checkData(sortedArray.getData(), sortedArray.getId());
             }

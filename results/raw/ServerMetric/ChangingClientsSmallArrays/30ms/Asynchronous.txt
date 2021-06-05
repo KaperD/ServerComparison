@@ -1,0 +1,16 @@
+Asynchronous
+NumberOfRequestsPerClient 1000
+ArraySize 100
+TimeBetweenRequests 30
+NumberOfClients
+100 1
+150 1
+200 1
+250 2
+300 2
+350 2
+400 2
+450 2
+500 2
+550 3
+600 3
