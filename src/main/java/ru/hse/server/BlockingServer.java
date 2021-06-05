@@ -10,15 +10,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class BlockingServer extends Server {
-    private final ExecutorService serverSocketService = Executors.newSingleThreadExecutor();
-    private ExecutorService workersThreadPool;
+    private final ExecutorService clientsAcceptor = Executors.newSingleThreadExecutor();
     private final ConcurrentLinkedQueue<ClientData> clients = new ConcurrentLinkedQueue<>();
+    private ExecutorService workersThreadPool;
     private ServerSocket serverSocket;
 
     private volatile boolean isWorking;
@@ -33,7 +32,7 @@ public class BlockingServer extends Server {
         try {
             isWorking = true;
             serverSocket = new ServerSocket(port);
-            serverSocketService.submit(() -> acceptClients(serverSocket));
+            clientsAcceptor.submit(() -> acceptClients(serverSocket));
         } catch (IOException ex) {
             throw new ServerException(ex);
         }
@@ -42,7 +41,7 @@ public class BlockingServer extends Server {
     @Override
     public void shutdown() throws ServerException {
         isWorking = false;
-        serverSocketService.shutdown();
+        clientsAcceptor.shutdown();
         workersThreadPool.shutdown();
         clients.forEach(ClientData::close);
         try {

@@ -13,7 +13,6 @@ import java.nio.channels.AsynchronousServerSocketChannel;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.Queue;
-import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -75,40 +74,9 @@ public class AsynchronousServer extends Server {
                 return;
             }
             if (clientData.isReadingSize) {
-                if (!clientData.messageSizeBuffer.hasRemaining()) {
-                    clientData.messageSizeBuffer.flip();
-                    int size = clientData.messageSizeBuffer.getInt();
-                    clientData.messageSizeBuffer.clear();
-                    clientData.isReadingSize = false;
-                    clientData.messageBuffer = ByteBuffer.allocate(size);
-                    clientData.channel.read(clientData.messageBuffer, clientData, this);
-                } else {
-                    clientData.channel.read(clientData.messageSizeBuffer, clientData, this);
-                }
+                processSize(clientData);
             } else {
-                if (!clientData.messageBuffer.hasRemaining()) {
-                    clientData.isReadingSize = true;
-                    ByteBuffer buffer = clientData.messageBuffer;
-                    clientData.channel.read(clientData.messageSizeBuffer, clientData, this);
-                    try {
-                        buffer.flip();
-                        IntArray array = ProtoUtils.readArray(buffer);
-                        final int id = array.getId();
-                        startMeasure(id);
-                        workersThreadPool.submit(() -> {
-                            IntArraysUtils.sort(array.getData());
-                            clientData.addOutput(ProtoUtils.serialize(array));
-                            if (clientData.numberOfUnfinishedOutputs.incrementAndGet() == 1) {
-                                clientData.channel.write(clientData.getNextOutput(), clientData, outputHandler);
-                            }
-                            endMeasure(id);
-                        });
-                    } catch (InvalidProtocolBufferException e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    clientData.channel.read(clientData.messageBuffer, clientData, this);
-                }
+                processData(clientData);
             }
         }
 
@@ -116,6 +84,70 @@ public class AsynchronousServer extends Server {
         public void failed(Throwable throwable, ClientData clientData) {
             clientData.close();
             System.out.println("Я упал");
+        }
+
+        private void processSize(ClientData clientData) {
+            if (!clientData.messageSizeBuffer.hasRemaining()) {
+                startReadingData(clientData);
+            } else {
+                readSize(clientData);
+            }
+        }
+
+        private void startReadingData(ClientData clientData) {
+            clientData.isReadingSize = false;
+            int size = getDataSize(clientData);
+            clientData.messageBuffer = ByteBuffer.allocate(size);
+            clientData.channel.read(clientData.messageBuffer, clientData, this);
+        }
+
+        private int getDataSize(ClientData clientData) {
+            clientData.messageSizeBuffer.flip();
+            int size = clientData.messageSizeBuffer.getInt();
+            clientData.messageSizeBuffer.clear();
+            return size;
+        }
+
+        private void readSize(ClientData clientData) {
+            clientData.channel.read(clientData.messageSizeBuffer, clientData, this);
+        }
+
+        private void processData(ClientData clientData) {
+            if (!clientData.messageBuffer.hasRemaining()) {
+                addTaskAndStartReadingSize(clientData);
+            } else {
+                readData(clientData);
+            }
+        }
+
+        private void addTaskAndStartReadingSize(ClientData clientData) {
+            clientData.isReadingSize = true;
+            ByteBuffer buffer = clientData.messageBuffer;
+            readSize(clientData);
+            addTask(clientData, buffer);
+        }
+
+        private void addTask(ClientData clientData, ByteBuffer dataBuffer) {
+            try {
+                dataBuffer.flip();
+                IntArray array = ProtoUtils.readArray(dataBuffer);
+                final int id = array.getId();
+                startMeasure(id);
+                workersThreadPool.submit(() -> {
+                    IntArraysUtils.sort(array.getData());
+                    clientData.addOutput(ProtoUtils.serialize(array));
+                    if (clientData.numberOfUnfinishedOutputs.incrementAndGet() == 1) {
+                        clientData.channel.write(clientData.getNextOutput(), clientData, outputHandler);
+                    }
+                    endMeasure(id);
+                });
+            } catch (InvalidProtocolBufferException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void readData(ClientData clientData) {
+            clientData.channel.read(clientData.messageBuffer, clientData, this);
         }
     }
 
@@ -144,11 +176,12 @@ public class AsynchronousServer extends Server {
 
     private static class ClientData {
         public final AtomicInteger numberOfUnfinishedOutputs = new AtomicInteger(0);
-        private final Queue<ByteBuffer> outputs = new ConcurrentLinkedQueue<>();
         public final ByteBuffer messageSizeBuffer = ByteBuffer.allocate(Integer.BYTES);
         public ByteBuffer messageBuffer;
         public boolean isReadingSize = true;
         public final AsynchronousSocketChannel channel;
+
+        private final Queue<ByteBuffer> outputs = new ConcurrentLinkedQueue<>();
         private volatile ByteBuffer currentBuffer;
 
         private ClientData(AsynchronousSocketChannel channel) {

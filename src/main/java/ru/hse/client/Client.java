@@ -21,7 +21,6 @@ public class Client implements Callable<Void> {
     private final int delta;
     private final int cycles;
     private final Statistics statistics;
-    private Socket socket;
 
     public static Builder getBuilder() {
         return new Builder();
@@ -39,7 +38,7 @@ public class Client implements Callable<Void> {
 
     @Override
     public Void call() throws IOException {
-        socket = new Socket(host, port);
+        Socket socket = new Socket(host, port);
         Thread requestsThread = new Thread(() -> {
             try {
                 for (int k = 0; k < cycles; k++) {
@@ -63,7 +62,6 @@ public class Client implements Callable<Void> {
                 long start = measurements.get(sortedArray.getId());
                 long time = System.currentTimeMillis() - start;
                 statistics.addMeasurementClient(time);
-//                System.out.println("Task " + sortedArray.getId() + " is ready");
 //                checkData(sortedArray.getData(), sortedArray.getId());
             }
         } catch (IOException e) {

@@ -130,6 +130,7 @@ public class Main {
         Statistics statistics = new Statistics();
         Server server = serverType.getInstance(statistics);
         server.start(PORT, NUMBER_OF_SERVER_WORKERS);
+        long start = System.currentTimeMillis();
         while (lowerBound <= upperBound) {
             if (changingParameter.equals(Parameter.ARRAY_SIZE)) {
                 numberOfElementsInArray = lowerBound;
@@ -145,6 +146,8 @@ public class Main {
             builder.append(lowerBound).append(" ").append(time).append(System.lineSeparator());
             lowerBound += step;
         }
+        long totalTime = System.currentTimeMillis() - start;
+        builder.append("TotalTime ").append(totalTime).append(System.lineSeparator());
         server.shutdown();
 
         return builder.toString();

@@ -24,6 +24,7 @@ public class ProtoUtils {
         outputStream.flush();
     }
 
+    @NotNull
     public static ByteBuffer serialize(IntArray array) {
         Iterable<Integer> iterable = () -> IntStream.of(array.getData()).iterator();
         ArrayProtos.IntArray responseArray = ArrayProtos.IntArray.newBuilder().
